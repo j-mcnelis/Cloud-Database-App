@@ -19,17 +19,113 @@
         tr:nth-child(even) {
             background-color: #f2f2f2;
         }
+
+        .pagination {
+            margin-top: 10px;
+        }
+
+        .pagination a, .pagination span {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            text-decoration: none;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .pagination span {
+            background-color: #ddd;
+            color: black;
+            cursor: not-allowed;
+        }
+
+        .button-container {
+            float: right;
+        }
+
+        .button-container form {
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .button-container button {
+            background-color: #007BFF;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .button-container button:hover {
+            background-color: #0056b3;
+        }
+
+        .search-button {
+            padding: 3.2px 10.5px;
+            background-color: #4CAF50;
+            font: bold;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .search-button:hover {
+            background-color: #45a049;
+        }
+
+        .clear-search-button {
+            padding: 2px 3.5px;
+            background-color: #f44336;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 2.5px;
+            cursor: pointer;
+        }
+
+        .clear-search-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .clear {
+            clear: both;
+        }
+
     </style>
 </head>
 <body>
-    <div style="text-align: right;">
-        <a href="/logout">Logout</a>
+    <div class="button-container">
+        <form action="/home" method="get">
+            <button type="submit">Back to Home</button>
+        </form>
+
+        <form action="/logout" method="get">
+            <button type="submit">Logout</button>
+        </form>
     </div>
-    <h1>Data from MySQL</h1>
-    <form action="/index" method="get">
+
+    <div class="clear"></div>
+    <h1 style="text-align: center; margin-top: 5px; margin-bottom: 5px; font-size: 36px">Employees Database</h1>
+    <form id="searchForm" action="/index" method="get">
         <label for="search">Search:</label>
         <input type="text" id="search" name="search" value="{{ search }}">
-        <button type="submit">Search</button>
+        <button type="submit" class="search-button" style="display: inline-block;">Search</button>
+        <br>
+        <label for="filter" style="margin-top: 3px; margin-bottom: 3px;">Filter by:</label>
+        <select id="filter" name="filter" style="margin-top: 3px; margin-bottom: 3px; padding-top: 2px; padding-bottom: 2px;">
+            <option value="all" {% if filter == 'all' %}selected{% endif %}>All Columns</option>
+            <option value="emp_no" {% if filter == 'emp_no' %}selected{% endif %}>Employee Number</option>
+            <option value="birth_date" {% if filter == 'birth_date' %}selected{% endif %}>Birth Date</option>
+            <option value="first_name" {% if filter == 'first_name' %}selected{% endif %}>First Name</option>
+            <option value="last_name" {% if filter == 'last_name' %}selected{% endif %}>Last Name</option>
+            <option value="gender" {% if filter == 'gender' %}selected{% endif %}>Gender</option>
+            <option value="hire_date" {% if filter == 'hire_date' %}selected{% endif %}>Hire Date</option>
+        </select>
+        <a href="/index?search=&filter=all" class="clear-search-button" style="display: inline-block;">Clear Search</a>
     </form>
     <table>
         <thead>
@@ -43,28 +139,43 @@
             </tr>
         </thead>
         <tbody>
-            {% for row in data %}
+            {% if data %}
+                {% for row in data %}
+                    <tr>
+                        <td>{{ row[0] }}</td>
+                        <td>{{ row[1] }}</td>
+                        <td>{{ row[2] }}</td>
+                        <td>{{ row[3] }}</td>
+                        <td>{{ row[4] }}</td>
+                        <td>{{ row[5] }}</td>
+                    </tr>
+                {% endfor %}
+            {% else %}
                 <tr>
-                    <td>{{ row[0] }}</td>
-                    <td>{{ row[1] }}</td>
-                    <td>{{ row[2] }}</td>
-                    <td>{{ row[3] }}</td>
-                    <td>{{ row[4] }}</td>
-                    <td>{{ row[5] }}</td>
+                    <td colspan="6">No results found.</td>
                 </tr>
-            {% endfor %}
+            {% endif %}
         </tbody>
     </table>
-    {% if pagination %}
-        <div>
-            <span>Page {{ page }} of {{ max_pages }}</span>
-            {% if page > 1 %}
-                <a href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}">Previous</a>
-            {% endif %}
-            {% if page < max_pages %}
-                <a href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}">Next</a>
-            {% endif %}
-        </div>
-    {% endif %}
+    <div class="pagination">
+        {% if page > 1 %}
+            <a href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}">Previous</a>
+        {% else %}
+            <span>Previous</span>
+        {% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+            <a href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}">Next</a>
+        {% else %}
+            <span>Next</span>
+        {% endif %}
+    </div>
+<script>
+    function clearSearch() {
+        document.getElementById('search').value = '';
+        document.getElementById('filter').value = 'all';
+        document.forms[0].submit(); // Submit the form after clearing
+    }
+</script>
 </body>
 </html>

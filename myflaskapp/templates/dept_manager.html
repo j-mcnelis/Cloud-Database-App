@@ -1,10 +1,10 @@
-<!-- Original html test file (essentially employees.html) -->
+<!-- dept_manager.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySQL Flask App - Employees</title>
+    <title>Department Managers</title>
     <style>
         table {
             border-collapse: collapse;
@@ -99,7 +99,6 @@
         .clear {
             clear: both;
         }
-
     </style>
 </head>
 <body style="background-color: #9eedead6;">
@@ -113,9 +112,8 @@
         </form>
     </div>
 
-    <div class="clear"></div>
-    <h1 style="text-align: center; margin-top: 5px; margin-bottom: 5px; font-size: 36px">Employees Database</h1>
-    <form id="searchForm" action="/index" method="get">
+    <h1 style="text-align: center; margin-top: 5px; margin-bottom: 5px; font-size: 36px">Department Managers Database</h1>
+    <form id="searchForm" action="/dept_manager" method="get">
         <label for="search">Search:</label>
         <input type="text" id="search" name="search" value="{{ search }}">
         <button type="submit" class="search-button" style="display: inline-block;">Search</button>
@@ -124,23 +122,19 @@
         <select id="filter" name="filter" style="margin-top: 3px; margin-bottom: 3px; padding-top: 2px; padding-bottom: 2px;">
             <option value="all" {% if filter == 'all' %}selected{% endif %}>All Columns</option>
             <option value="emp_no" {% if filter == 'emp_no' %}selected{% endif %}>Employee Number</option>
-            <option value="birth_date" {% if filter == 'birth_date' %}selected{% endif %}>Birth Date</option>
-            <option value="first_name" {% if filter == 'first_name' %}selected{% endif %}>First Name</option>
-            <option value="last_name" {% if filter == 'last_name' %}selected{% endif %}>Last Name</option>
-            <option value="gender" {% if filter == 'gender' %}selected{% endif %}>Gender</option>
-            <option value="hire_date" {% if filter == 'hire_date' %}selected{% endif %}>Hire Date</option>
+            <option value="dept_no" {% if filter == 'dept_no' %}selected{% endif %}>Department Number</option>
+            <option value="from_date" {% if filter == 'from_date' %}selected{% endif %}>From Date</option>
+            <option value="to_date" {% if filter == 'to_date' %}selected{% endif %}>To Date</option>
         </select>
-        <a href="/index?search=&filter=all" class="clear-search-button" style="display: inline-block;">Clear Search</a>
+        <a href="/dept_manager?search=&filter=all" class="clear-search-button" style="display: inline-block;">Clear Search</a>
     </form>
     <table>
         <thead>
             <tr>
                 <th>Employee Number</th>
-                <th>Birth Date</th>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Gender</th>
-                <th>Hire Date</th>
+                <th>Department Number</th>
+                <th>From Date</th>
+                <th>To Date</th>
             </tr>
         </thead>
         <tbody>
@@ -151,13 +145,11 @@
                         <td>{{ row[1] }}</td>
                         <td>{{ row[2] }}</td>
                         <td>{{ row[3] }}</td>
-                        <td>{{ row[4] }}</td>
-                        <td>{{ row[5] }}</td>
                     </tr>
                 {% endfor %}
             {% else %}
                 <tr>
-                    <td colspan="6">No results found.</td>
+                    <td colspan="4">No results found.</td>
                 </tr>
             {% endif %}
         </tbody>
@@ -175,12 +167,12 @@
             <span>Next</span>
         {% endif %}
     </div>
-<script>
-    function clearSearch() {
-        document.getElementById('search').value = '';
-        document.getElementById('filter').value = 'all';
-        document.forms[0].submit(); // Submit the form after clearing
-    }
-</script>
+    <script>
+        function clearSearch() {
+            document.getElementById('search').value = '';
+            document.getElementById('filter').value = 'all';
+            document.forms[0].submit(); // Submit the form after clearing
+        }
+    </script>
 </body>
 </html>

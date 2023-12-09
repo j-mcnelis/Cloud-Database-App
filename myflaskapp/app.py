@@ -15,6 +15,11 @@ connection_string =f'DRIVER={driver};SERVER={server};DATABASE={database};UID={db
 db = pyodbc.connect(connection_string)
 
 # Login page
+@app.route('/')
+def defaultLog():
+    return render_template('login.html')
+
+# Login page
 @app.route('/login')
 def login():
     # Clear any previous login error

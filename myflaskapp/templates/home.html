@@ -9,17 +9,23 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
+            font-size: 24px;
             margin-top: 10px;
+            margin-bottom: 30px;
         }
 
         .button-container {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(3, 250px); /* Three columns, each 125 pixels wide */
+            column-gap: 50px;
+            row-gap: 25px;
             justify-content: center;
+            align-items: center;
         }
 
         .database-button {
+            width: 250px; /* Set the width of each button */
             padding: 20px;
-            margin: 10px;
             font-size: 18px;
             text-decoration: none;
             color: white;
@@ -27,6 +33,9 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .database-button:hover {
@@ -44,13 +53,12 @@
             border: none;
             text-decoration: none;
             cursor: pointer;
-            margin-bottom: 110px;
+            margin-bottom: 175px;
         }
 
         .logout button:hover {
             background-color: #0056b3;
         }
-
     </style>
 </head>
 <body style="background-color: #9eedead6;">
@@ -59,7 +67,7 @@
             <button type="submit">Logout</button>
         </form>
     </div>
-    <h1>Select Database Table</h1>
+    <h1 style="font-size: 36; margin-bottom: 30px;">Select Database Table</h1>
     <div class="button-container">
         <a href="/index" class="database-button">Employees</a>
         <a href="/salaries" class="database-button">Salaries</a>

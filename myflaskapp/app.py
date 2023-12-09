@@ -1,20 +1,18 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-import mysql.connector
-import configparser
+import pyodbc
+import os
 
 app = Flask(__name__)
 
-# MySQL configuration
-config = configparser.ConfigParser()
-config.read('config.ini')
-app.secret_key = config['database']['secret_key']
+server = os.environ.get('DB_SERVER')
+database = os.environ.get('DB_DBASE')
+db_user = os.environ.get('DB_USER')
+db_password = os.environ.get('DB_PASSWORD')
+driver = os.environ.get('DB_DRIVER')
+app.secret_key = os.environ.get('DB_SKEY')
 
-db = mysql.connector.connect(
-    host = config['database']['host'],
-    user = config['database']['user'],
-    password = config['database']['password'],
-    database = config['database']['database']
-)
+connection_string =f'DRIVER={driver};SERVER={server};DATABASE={database};UID={db_user};Pwd={db_password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+db = pyodbc.connect(connection_string)
 
 # Login page
 @app.route('/login')
@@ -42,7 +40,7 @@ def do_login():
 
     # Since this is a personal cloud database app, there is only one username and
     # password that will login to the database. This is a simple method to log in
-    if username == config['database']['user'] and password == config['database']['password']:
+    if username == db_user and password == db_password:
         session['logged_in'] = True
         return redirect(url_for('home'))
     else:
@@ -71,20 +69,24 @@ def index():
     filter_by = request.args.get('filter', 'all')  # Default to searching in all columns
 
     if search_query:
-        # Define the columns based on the selected filter
+    # Replace 'employees' with your Azure SQL table name
         columns = ['emp_no', 'birth_date', 'first_name', 'last_name', 'gender', 'hire_date']
-
-        # Build the WHERE clause based on the selected filter
+        # Adjust the WHERE clause based on Azure SQL syntax
         if filter_by != 'all':
-            where_clause = f"LOWER({filter_by}) LIKE %s"
+            where_clause = f"LOWER({filter_by}) LIKE ?"
         else:
-            where_clause = ' OR '.join([f"LOWER({col}) LIKE %s" for col in columns])
-
-        sql = f"SELECT * FROM employees WHERE {where_clause}"
-
-        # Execute the query with the search query and selected filter
-        cursor.execute(sql, (['%' + search_query.lower() + '%'] if filter_by != 'all' else ['%' + search_query.lower() + '%'] * len(columns)))
-
+            # Use OR to combine all columns for the "All Columns" filter
+            where_clause = ' OR '.join([f"LOWER({col}) LIKE ?" for col in columns])
+        
+        sql = f"SELECT * FROM employees.employees WHERE {where_clause}"
+    
+        # Use ? as a placeholder for parameters in Azure SQL queries
+        if filter_by != 'all':
+            cursor.execute(sql, ['%' + search_query.lower() + '%'])
+        else:
+            # Repeat the search_query parameter for each column in the "All Columns" filter
+            cursor.execute(sql, (['%' + search_query.lower() + '%'] * len(columns)))
+            
         data = cursor.fetchall()
 
         total_records = len(data)
@@ -93,12 +95,13 @@ def index():
         # Paginate the results for display
         data = data[offset:offset + per_page]
     else:
-        cursor.execute("SELECT COUNT(*) FROM employees")
+        cursor.execute("SELECT COUNT(*) FROM employees.employees")
         total_records = cursor.fetchone()[0]
         total_pages = (total_records // per_page) + (total_records % per_page > 0)
 
-        sql = "SELECT * FROM employees LIMIT %s OFFSET %s"
-        cursor.execute(sql, (per_page, offset))
+        # Replace 'employees' with your Azure SQL table name
+        sql = "SELECT * FROM employees.employees ORDER BY emp_no OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+        cursor.execute(sql, (offset, per_page))
         data = cursor.fetchall()
 
     return render_template('index.html', data=data, page=page, total_pages=total_pages, search=search_query, filter=filter_by)
@@ -121,29 +124,30 @@ def salaries():
 
     if search_query:
         columns = ['emp_no', 'salary', 'from_date', 'to_date']
+        if filter_by != 'all':
+            where_clause = f"LOWER({filter_by}) LIKE ?"
+        else:
+            where_clause = ' OR '.join([f"LOWER({col}) LIKE ?" for col in columns])
+
+        sql = f"SELECT * FROM employees.salaries WHERE {where_clause}"
 
         if filter_by != 'all':
-            where_clause = f"LOWER({filter_by}) LIKE %s"
+            cursor.execute(sql, ['%' + search_query.lower() + '%'])
         else:
-            where_clause = ' OR '.join([f"LOWER({col}) LIKE %s" for col in columns])
-
-        sql = f"SELECT * FROM salaries WHERE {where_clause}"
-
-        cursor.execute(sql, (['%' + search_query.lower() + '%'] if filter_by != 'all' else ['%' + search_query.lower() + '%'] * len(columns)))
+            cursor.execute(sql, (['%' + search_query.lower() + '%'] * len(columns)))
 
         data = cursor.fetchall()
-
         total_records = len(data)
         total_pages = 1 if total_records == 0 else (total_records // per_page) + (total_records % per_page > 0)
 
         data = data[offset:offset + per_page]
     else:
-        cursor.execute("SELECT COUNT(*) FROM salaries")
+        cursor.execute("SELECT COUNT(*) FROM employees.salaries")
         total_records = cursor.fetchone()[0]
         total_pages = (total_records // per_page) + (total_records % per_page > 0)
 
-        sql = "SELECT * FROM salaries LIMIT %s OFFSET %s"
-        cursor.execute(sql, (per_page, offset))
+        sql = "SELECT * FROM employees.salaries ORDER BY emp_no OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+        cursor.execute(sql, (offset, per_page))
         data = cursor.fetchall()
 
     return render_template('salaries.html', data=data, page=page, total_pages=total_pages, search=search_query, filter=filter_by)
@@ -165,34 +169,31 @@ def titles():
     filter_by = request.args.get('filter', 'all')  # Default to searching in all columns
 
     if search_query:
-        # Define the columns based on the selected filter
         columns = ['emp_no', 'title', 'from_date', 'to_date']
-
-        # Build the WHERE clause based on the selected filter
         if filter_by != 'all':
-            where_clause = f"LOWER({filter_by}) LIKE %s"
+            where_clause = f"LOWER({filter_by}) LIKE ?"
         else:
-            where_clause = ' OR '.join([f"LOWER({col}) LIKE %s" for col in columns])
+            where_clause = ' OR '.join([f"LOWER({col}) LIKE ?" for col in columns])
 
-        sql = f"SELECT * FROM titles WHERE {where_clause}"
+        sql = f"SELECT * FROM employees.titles WHERE {where_clause}"
 
-        # Execute the query with the search query and selected filter
-        cursor.execute(sql, (['%' + search_query.lower() + '%'] if filter_by != 'all' else ['%' + search_query.lower() + '%'] * len(columns)))
+        if filter_by != 'all':
+            cursor.execute(sql, ['%' + search_query.lower() + '%'])
+        else:
+            cursor.execute(sql, (['%' + search_query.lower() + '%'] * len(columns)))
 
         data = cursor.fetchall()
-
         total_records = len(data)
         total_pages = 1 if total_records == 0 else (total_records // per_page) + (total_records % per_page > 0)
 
-        # Paginate the results for display
         data = data[offset:offset + per_page]
     else:
-        cursor.execute("SELECT COUNT(*) FROM titles")
+        cursor.execute("SELECT COUNT(*) FROM employees.titles")
         total_records = cursor.fetchone()[0]
         total_pages = (total_records // per_page) + (total_records % per_page > 0)
 
-        sql = "SELECT * FROM titles LIMIT %s OFFSET %s"
-        cursor.execute(sql, (per_page, offset))
+        sql = "SELECT * FROM employees.titles ORDER BY emp_no OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+        cursor.execute(sql, (offset, per_page))
         data = cursor.fetchall()
 
     return render_template('titles.html', data=data, page=page, total_pages=total_pages, search=search_query, filter=filter_by)
@@ -214,34 +215,31 @@ def dept_emp():
     filter_by = request.args.get('filter', 'all')  # Default to searching in all columns
 
     if search_query:
-        # Define the columns based on the selected filter
         columns = ['emp_no', 'dept_no', 'from_date', 'to_date']
-
-        # Build the WHERE clause based on the selected filter
         if filter_by != 'all':
-            where_clause = f"LOWER({filter_by}) LIKE %s"
+            where_clause = f"LOWER({filter_by}) LIKE ?"
         else:
-            where_clause = ' OR '.join([f"LOWER({col}) LIKE %s" for col in columns])
+            where_clause = ' OR '.join([f"LOWER({col}) LIKE ?" for col in columns])
 
-        sql = f"SELECT * FROM dept_emp WHERE {where_clause}"
+        sql = f"SELECT * FROM employees.dept_emp WHERE {where_clause}"
 
-        # Execute the query with the search query and selected filter
-        cursor.execute(sql, (['%' + search_query.lower() + '%'] if filter_by != 'all' else ['%' + search_query.lower() + '%'] * len(columns)))
+        if filter_by != 'all':
+            cursor.execute(sql, ['%' + search_query.lower() + '%'])
+        else:
+            cursor.execute(sql, (['%' + search_query.lower() + '%'] * len(columns)))
 
         data = cursor.fetchall()
-
         total_records = len(data)
         total_pages = 1 if total_records == 0 else (total_records // per_page) + (total_records % per_page > 0)
 
-        # Paginate the results for display
         data = data[offset:offset + per_page]
     else:
-        cursor.execute("SELECT COUNT(*) FROM dept_emp")
+        cursor.execute("SELECT COUNT(*) FROM employees.dept_emp")
         total_records = cursor.fetchone()[0]
         total_pages = (total_records // per_page) + (total_records % per_page > 0)
 
-        sql = "SELECT * FROM dept_emp LIMIT %s OFFSET %s"
-        cursor.execute(sql, (per_page, offset))
+        sql = "SELECT * FROM employees.dept_emp ORDER BY emp_no OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+        cursor.execute(sql, (offset, per_page))
         data = cursor.fetchall()
 
     return render_template('dept_emp.html', data=data, page=page, total_pages=total_pages, search=search_query, filter=filter_by)
@@ -263,34 +261,31 @@ def dept_manager():
     filter_by = request.args.get('filter', 'all')  # Default to searching in all columns
 
     if search_query:
-        # Define the columns based on the selected filter
         columns = ['emp_no', 'dept_no', 'from_date', 'to_date']
-
-        # Build the WHERE clause based on the selected filter
         if filter_by != 'all':
-            where_clause = f"LOWER({filter_by}) LIKE %s"
+            where_clause = f"LOWER({filter_by}) LIKE ?"
         else:
-            where_clause = ' OR '.join([f"LOWER({col}) LIKE %s" for col in columns])
+            where_clause = ' OR '.join([f"LOWER({col}) LIKE ?" for col in columns])
 
-        sql = f"SELECT * FROM dept_manager WHERE {where_clause}"
+        sql = f"SELECT * FROM employees.dept_manager WHERE {where_clause}"
 
-        # Execute the query with the search query and selected filter
-        cursor.execute(sql, (['%' + search_query.lower() + '%'] if filter_by != 'all' else ['%' + search_query.lower() + '%'] * len(columns)))
+        if filter_by != 'all':
+            cursor.execute(sql, ['%' + search_query.lower() + '%'])
+        else:
+            cursor.execute(sql, (['%' + search_query.lower() + '%'] * len(columns)))
 
         data = cursor.fetchall()
-
         total_records = len(data)
         total_pages = 1 if total_records == 0 else (total_records // per_page) + (total_records % per_page > 0)
 
-        # Paginate the results for display
         data = data[offset:offset + per_page]
     else:
-        cursor.execute("SELECT COUNT(*) FROM dept_manager")
+        cursor.execute("SELECT COUNT(*) FROM employees.dept_manager")
         total_records = cursor.fetchone()[0]
         total_pages = (total_records // per_page) + (total_records % per_page > 0)
 
-        sql = "SELECT * FROM dept_manager LIMIT %s OFFSET %s"
-        cursor.execute(sql, (per_page, offset))
+        sql = "SELECT * FROM employees.dept_manager ORDER BY emp_no OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+        cursor.execute(sql, (offset, per_page))
         data = cursor.fetchall()
 
     return render_template('dept_manager.html', data=data, page=page, total_pages=total_pages, search=search_query, filter=filter_by)
@@ -312,34 +307,31 @@ def departments():
     filter_by = request.args.get('filter', 'all')  # Default to searching in all columns
 
     if search_query:
-        # Define the columns based on the selected filter
         columns = ['dept_no', 'dept_name']
-
-        # Build the WHERE clause based on the selected filter
         if filter_by != 'all':
-            where_clause = f"LOWER({filter_by}) LIKE %s"
+            where_clause = f"LOWER({filter_by}) LIKE ?"
         else:
-            where_clause = ' OR '.join([f"LOWER({col}) LIKE %s" for col in columns])
+            where_clause = ' OR '.join([f"LOWER({col}) LIKE ?" for col in columns])
 
-        sql = f"SELECT * FROM departments WHERE {where_clause}"
+        sql = f"SELECT * FROM employees.departments WHERE {where_clause}"
 
-        # Execute the query with the search query and selected filter
-        cursor.execute(sql, (['%' + search_query.lower() + '%'] if filter_by != 'all' else ['%' + search_query.lower() + '%'] * len(columns)))
+        if filter_by != 'all':
+            cursor.execute(sql, ['%' + search_query.lower() + '%'])
+        else:
+            cursor.execute(sql, (['%' + search_query.lower() + '%'] * len(columns)))
 
         data = cursor.fetchall()
-
         total_records = len(data)
         total_pages = 1 if total_records == 0 else (total_records // per_page) + (total_records % per_page > 0)
 
-        # Paginate the results for display
         data = data[offset:offset + per_page]
     else:
-        cursor.execute("SELECT COUNT(*) FROM departments")
+        cursor.execute("SELECT COUNT(*) FROM employees.departments")
         total_records = cursor.fetchone()[0]
         total_pages = (total_records // per_page) + (total_records % per_page > 0)
 
-        sql = "SELECT * FROM departments LIMIT %s OFFSET %s"
-        cursor.execute(sql, (per_page, offset))
+        sql = "SELECT * FROM employees.departments ORDER BY dept_no OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+        cursor.execute(sql, (offset, per_page))
         data = cursor.fetchall()
 
     return render_template('departments.html', data=data, page=page, total_pages=total_pages, search=search_query, filter=filter_by)
